@@ -58,6 +58,7 @@ func (m *Match) Leave(playerID string) {
 	defer m.mu.Unlock()
 
 	delete(m.Players, playerID)
+	delete(m.Game.Players, playerID)
 	fmt.Println("🔴 Player left:", playerID)
 
 	if len(m.Players) < 2 {
