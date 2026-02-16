@@ -2,7 +2,6 @@ package network
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 
@@ -26,25 +25,12 @@ func HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 	}
 	defer conn.Close()
 
-	playerID := fmt.Sprintf("player-%d", len(activeMatch.Players)+1)
+	playerID := activeMatch.GeneratePlayerID()
 	p := player.New(playerID, conn)
 
 	if err := activeMatch.Join(p); err != nil {
 		log.Println("Join error:", err)
-		errorPayload := struct {
-			Type    string `json:"type"`
-			Message string `json:"message"`
-		}{
-			Type:    "error",
-			Message: "match_full",
-		}
-
-		if msgBytes, marshalErr := json.Marshal(errorPayload); marshalErr != nil {
-			log.Println("Error marshaling match_full message:", marshalErr)
-			return
-		}
-
-		_ = conn.WriteMessage(websocket.TextMessage, msgBytes)
+		_ = conn.WriteMessage(websocket.TextMessage, []byte("Match full"))
 		return
 	}
 	defer activeMatch.Leave(p.ID)

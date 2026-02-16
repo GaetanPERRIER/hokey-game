@@ -12,19 +12,21 @@ import (
 )
 
 type Match struct {
-	ID      string
-	Players map[string]*player.Player
-	Status  string
-	Game    game.GameState
-	mu      sync.Mutex
+	ID           string
+	Players      map[string]*player.Player
+	Status       string
+	Game         game.GameState
+	mu           sync.Mutex
+	nextPlayerID int
 }
 
 func New(id string) *Match {
 	return &Match{
-		ID:      id,
-		Players: make(map[string]*player.Player),
-		Status:  "waiting",
-		Game:    game.InitGameState(),
+		ID:           id,
+		Players:      make(map[string]*player.Player),
+		Status:       "waiting",
+		Game:         game.InitGameState(),
+		nextPlayerID: 1,
 	}
 }
 
@@ -59,6 +61,16 @@ func (m *Match) Leave(playerID string) {
 		m.Status = "waiting"
 		fmt.Println("⏸️ Match", m.ID, "waiting for players...")
 	}
+}
+
+// GeneratePlayerID generates a unique player ID in a thread-safe manner
+func (m *Match) GeneratePlayerID() string {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+
+	id := fmt.Sprintf("player-%d", m.nextPlayerID)
+	m.nextPlayerID++
+	return id
 }
 
 func (m *Match) StartGameLoop() {
