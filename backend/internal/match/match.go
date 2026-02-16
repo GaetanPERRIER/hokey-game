@@ -12,11 +12,12 @@ import (
 )
 
 type Match struct {
-	ID      string
-	Players map[string]*player.Player
-	Status  string
-	Game    game.GameState
-	mu      sync.Mutex
+	ID          string
+	Players     map[string]*player.Player
+	Status      string
+	Game        game.GameState
+	mu          sync.Mutex
+	loopStarted bool
 }
 
 func New(id string) *Match {
@@ -42,7 +43,10 @@ func (m *Match) Join(p *player.Player) error {
 	if len(m.Players) == 2 {
 		m.Status = "playing"
 		fmt.Println("🏁 Match", m.ID, "starts!")
-		m.StartGameLoop()
+		if !m.loopStarted {
+			m.loopStarted = true
+			m.StartGameLoop()
+		}
 	}
 
 	return nil
