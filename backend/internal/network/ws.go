@@ -31,7 +31,20 @@ func HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 
 	if err := activeMatch.Join(p); err != nil {
 		log.Println("Join error:", err)
-		conn.WriteMessage(websocket.TextMessage, []byte("Match full"))
+		errorPayload := struct {
+			Type    string `json:"type"`
+			Message string `json:"message"`
+		}{
+			Type:    "error",
+			Message: "match_full",
+		}
+
+		if msgBytes, marshalErr := json.Marshal(errorPayload); marshalErr != nil {
+			log.Println("Error marshaling match_full message:", marshalErr)
+			return
+		}
+
+		_ = conn.WriteMessage(websocket.TextMessage, msgBytes)
 		return
 	}
 	defer activeMatch.Leave(p.ID)
@@ -51,7 +64,10 @@ func HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 			Key  string `json:"key"`
 		}
 
-		json.Unmarshal(msg, &inputMsg)
+		if err := json.Unmarshal(msg, &inputMsg); err != nil {
+			log.Printf("Invalid JSON from player %s: %v (raw: %s)", p.ID, err, string(msg))
+			continue
+		}
 
 		if inputMsg.Type == "input" {
 			switch inputMsg.Key {

@@ -28,7 +28,13 @@ onMounted(() => {
   // Envoi des inputs clavier
   window.addEventListener("keydown", (e) => {
     const msg = { type: "input", key: e.key }
-    socket.send(JSON.stringify(msg))
+    if (socket && socket.readyState === WebSocket.OPEN) {
+      try {
+        socket.send(JSON.stringify(msg))
+      } catch (err) {
+        // Optionally log or handle send errors
+      }
+    }
   })
 })
 </script>
