@@ -67,7 +67,7 @@ func (m *Match) Leave(playerID string) {
 func (m *Match) GeneratePlayerID() string {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	
+
 	id := fmt.Sprintf("player-%d", m.nextPlayerID)
 	m.nextPlayerID++
 	return id

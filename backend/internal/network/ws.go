@@ -30,7 +30,7 @@ func HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 
 	if err := activeMatch.Join(p); err != nil {
 		log.Println("Join error:", err)
-		conn.WriteMessage(websocket.TextMessage, []byte("Match full"))
+		_ = conn.WriteMessage(websocket.TextMessage, []byte("Match full"))
 		return
 	}
 	defer activeMatch.Leave(p.ID)
