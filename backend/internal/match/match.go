@@ -79,7 +79,13 @@ func (m *Match) StartGameLoop() {
 			game.ApplyPlayerInputs(&m.Game, m.Players)
 
 			// Copy game state and player connections under lock
-			stateJSON, _ := json.Marshal(m.Game)
+			stateJSON, err := json.Marshal(m.Game)
+			if err != nil {
+				fmt.Printf("⚠️ Error marshaling game state: %v\n", err)
+				m.mu.Unlock()
+				time.Sleep(time.Millisecond * time.Duration(tick))
+				continue
+			}
 			
 			// Create a snapshot of player connections
 			type connSnapshot struct {
@@ -99,13 +105,19 @@ func (m *Match) StartGameLoop() {
 			m.mu.Unlock()
 
 			// Broadcast to all players without holding the lock
+			// Collect failed player IDs for cleanup
+			var failedPlayers []string
 			for _, snapshot := range conns {
 				err := snapshot.conn.WriteMessage(websocket.TextMessage, stateJSON)
 				if err != nil {
 					fmt.Printf("⚠️ Error writing to player %s: %v\n", snapshot.playerID, err)
-					// Schedule cleanup for disconnected player
-					go m.Leave(snapshot.playerID)
+					failedPlayers = append(failedPlayers, snapshot.playerID)
 				}
+			}
+
+			// Cleanup disconnected players
+			for _, playerID := range failedPlayers {
+				m.Leave(playerID)
 			}
 
 			time.Sleep(time.Millisecond * time.Duration(tick))
