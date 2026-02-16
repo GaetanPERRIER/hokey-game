@@ -64,7 +64,10 @@ func HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 			Key  string `json:"key"`
 		}
 
-		json.Unmarshal(msg, &inputMsg)
+		if err := json.Unmarshal(msg, &inputMsg); err != nil {
+			log.Printf("Invalid JSON from player %s: %v (raw: %s)", p.ID, err, string(msg))
+			continue
+		}
 
 		if inputMsg.Type == "input" {
 			switch inputMsg.Key {
