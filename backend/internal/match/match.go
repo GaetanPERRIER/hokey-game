@@ -79,10 +79,20 @@ func (m *Match) StartGameLoop() {
 			game.ApplyPlayerInputs(&m.Game, m.Players)
 
 			// Broadcast à tous les joueurs
-			stateJSON, _ := json.Marshal(m.Game)
+			stateJSON, err := json.Marshal(m.Game)
+			if err != nil {
+				fmt.Println("❌ Failed to serialize game state for match", m.ID, ":", err)
+				m.mu.Unlock()
+				time.Sleep(time.Millisecond * time.Duration(tick))
+				continue
+			}
 			for _, p := range m.Players {
 				if p.Conn != nil {
-					p.Conn.WriteMessage(websocket.TextMessage, stateJSON)
+					if err := p.Conn.WriteMessage(websocket.TextMessage, stateJSON); err != nil {
+						fmt.Println("❌ Failed to write message to player", p.ID, "in match", m.ID, ":", err)
+						_ = p.Conn.Close()
+						delete(m.Players, p.ID)
+					}
 				}
 			}
 
