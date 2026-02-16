@@ -78,25 +78,48 @@ func (m *Match) StartGameLoop() {
 			// Appliquer inputs joueurs
 			game.ApplyPlayerInputs(&m.Game, m.Players)
 
-			// Broadcast à tous les joueurs
+			// Copy game state and player connections under lock
 			stateJSON, err := json.Marshal(m.Game)
 			if err != nil {
-				fmt.Println("❌ Failed to serialize game state for match", m.ID, ":", err)
+				fmt.Printf("⚠️ Error marshaling game state: %v\n", err)
 				m.mu.Unlock()
 				time.Sleep(time.Millisecond * time.Duration(tick))
 				continue
 			}
-			for _, p := range m.Players {
+			
+			// Create a snapshot of player connections
+			type connSnapshot struct {
+				playerID string
+				conn     *websocket.Conn
+			}
+			conns := make([]connSnapshot, 0, len(m.Players))
+			for id, p := range m.Players {
 				if p.Conn != nil {
-					if err := p.Conn.WriteMessage(websocket.TextMessage, stateJSON); err != nil {
-						fmt.Println("❌ Failed to write message to player", p.ID, "in match", m.ID, ":", err)
-						_ = p.Conn.Close()
-						delete(m.Players, p.ID)
-					}
+					conns = append(conns, connSnapshot{
+						playerID: id,
+						conn:     p.Conn,
+					})
 				}
 			}
 
 			m.mu.Unlock()
+
+			// Broadcast to all players without holding the lock
+			// Collect failed player IDs for cleanup
+			var failedPlayers []string
+			for _, snapshot := range conns {
+				err := snapshot.conn.WriteMessage(websocket.TextMessage, stateJSON)
+				if err != nil {
+					fmt.Printf("⚠️ Error writing to player %s: %v\n", snapshot.playerID, err)
+					failedPlayers = append(failedPlayers, snapshot.playerID)
+				}
+			}
+
+			// Cleanup disconnected players
+			for _, playerID := range failedPlayers {
+				m.Leave(playerID)
+			}
+
 			time.Sleep(time.Millisecond * time.Duration(tick))
 		}
 	}()
