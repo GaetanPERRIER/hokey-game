@@ -12,12 +12,13 @@ import (
 )
 
 type Match struct {
-	ID          string
-	Players     map[string]*player.Player
-	Status      string
-	Game        game.GameState
-	mu          sync.Mutex
-	loopStarted bool
+	ID           string
+	Players      map[string]*player.Player
+	Status       string
+	Game         game.GameState
+	mu           sync.Mutex
+	loopStarted  bool
+	nextPlayerID int
 }
 
 func New(id string) *Match {
@@ -102,7 +103,7 @@ func (m *Match) StartGameLoop() {
 				time.Sleep(time.Millisecond * time.Duration(tick))
 				continue
 			}
-			
+
 			// Create a snapshot of player connections
 			type connSnapshot struct {
 				playerID string
