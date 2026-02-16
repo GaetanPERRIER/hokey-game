@@ -78,15 +78,36 @@ func (m *Match) StartGameLoop() {
 			// Appliquer inputs joueurs
 			game.ApplyPlayerInputs(&m.Game, m.Players)
 
-			// Broadcast à tous les joueurs
+			// Copy game state and player connections under lock
 			stateJSON, _ := json.Marshal(m.Game)
-			for _, p := range m.Players {
+			
+			// Create a snapshot of player connections
+			type connSnapshot struct {
+				playerID string
+				conn     *websocket.Conn
+			}
+			conns := make([]connSnapshot, 0, len(m.Players))
+			for id, p := range m.Players {
 				if p.Conn != nil {
-					p.Conn.WriteMessage(websocket.TextMessage, stateJSON)
+					conns = append(conns, connSnapshot{
+						playerID: id,
+						conn:     p.Conn,
+					})
 				}
 			}
 
 			m.mu.Unlock()
+
+			// Broadcast to all players without holding the lock
+			for _, snapshot := range conns {
+				err := snapshot.conn.WriteMessage(websocket.TextMessage, stateJSON)
+				if err != nil {
+					fmt.Printf("⚠️ Error writing to player %s: %v\n", snapshot.playerID, err)
+					// Schedule cleanup for disconnected player
+					go m.Leave(snapshot.playerID)
+				}
+			}
+
 			time.Sleep(time.Millisecond * time.Duration(tick))
 		}
 	}()
