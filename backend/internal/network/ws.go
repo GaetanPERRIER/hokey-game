@@ -2,7 +2,6 @@ package network
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"net/http"
 
@@ -26,7 +25,7 @@ func HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 	}
 	defer conn.Close()
 
-	playerID := fmt.Sprintf("player-%d", len(activeMatch.Players)+1)
+	playerID := activeMatch.GeneratePlayerID()
 	p := player.New(playerID, conn)
 
 	if err := activeMatch.Join(p); err != nil {
