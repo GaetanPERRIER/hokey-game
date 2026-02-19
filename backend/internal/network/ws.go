@@ -25,8 +25,8 @@ func HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 	}
 	defer conn.Close()
 
-	playerID := activeMatch.GeneratePlayerID()
-	p := player.New(playerID, conn)
+	// Create a player struct without an ID; Join will assign the slot ("1" or "2")
+	p := player.New("", conn)
 
 	if err := activeMatch.Join(p); err != nil {
 		log.Println("Join error:", err)
@@ -44,7 +44,25 @@ func HandleWebSocket(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 
-		// Decode input JSON
+		// Try to decode a full input_state first
+		var stateMsg struct {
+			Type   string `json:"type"`
+			Inputs struct {
+				Up    bool `json:"up"`
+				Down  bool `json:"down"`
+				Left  bool `json:"left"`
+				Right bool `json:"right"`
+			} `json:"inputs"`
+		}
+		if err := json.Unmarshal(msg, &stateMsg); err == nil && stateMsg.Type == "input_state" {
+			p.Input.Up = stateMsg.Inputs.Up
+			p.Input.Down = stateMsg.Inputs.Down
+			p.Input.Left = stateMsg.Inputs.Left
+			p.Input.Right = stateMsg.Inputs.Right
+			continue
+		}
+
+		// Fallback: single-key input messages
 		var inputMsg struct {
 			Type string `json:"type"`
 			Key  string `json:"key"`
